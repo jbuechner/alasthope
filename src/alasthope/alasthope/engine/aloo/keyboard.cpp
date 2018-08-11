@@ -2,6 +2,8 @@
 #pragma hdrstop
 
 #include <map>
+#include <list>
+#include <functional>
 
 #include "utils.h"
 #include "keyboard.h"
@@ -39,10 +41,24 @@ namespace
 			return key_state::none;
 		}
 
+		void add_listener_internal(key_event_listener const& listener) override
+		{
+			_listeners.push_back(listener);
+		}
+
 		void handle_keyboard_event(ALLEGRO_EVENT const& ev)
 		{
 			auto const keyState{ map_to_key_state(ev.keyboard.type) };
 			_key_states.insert_or_assign(ev.keyboard.keycode, keyState);
+		}
+
+		void raise_event(ALLEGRO_EVENT const& ev)
+		{
+			auto const keyState{ map_to_key_state(ev.keyboard.type) };
+			for (auto& listener : _listeners)
+			{
+				listener(ev.keyboard.keycode, keyState);
+			}
 		}
 
 		void process_events_internal()
@@ -56,6 +72,7 @@ namespace
 				case ALLEGRO_EVENT_KEY_UP:
 				{
 					handle_keyboard_event(ev);
+					raise_event(ev);
 					break;
 				}
 				}
@@ -72,6 +89,7 @@ namespace
 			return (*iter).second == key_state::pressed;
 		}
 
+		std::list<key_event_listener> _listeners{};
 		std::map<int, key_state> _key_states{};
 		al_event_queue _event_queue{ nullptr };
 		std::shared_ptr<environment const> const _environment;

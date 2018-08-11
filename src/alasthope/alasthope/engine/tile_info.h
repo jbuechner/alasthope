@@ -6,33 +6,44 @@
 namespace engine
 {
 	class terrain_info;
+	class structure_info;
 
 	class tile_info
 	{
 	public:
 		virtual ~tile_info() {};
 
-		glm::uvec2 const& coordinate() const
+		inline glm::uvec2 const& coordinate() const
 		{
 			return coordinate_internal();
 		}
 
-		terrain_info const& terrain() const
+		inline terrain_info const& terrain() const
 		{
 			return terrain_internal();
 		}
 
-		size_t const& terrain_variation() const
+		inline size_t const& terrain_variation() const
 		{
 			return terrain_variation_internal();
 		}
 
-		void set_terrain(terrain_info const& terrain)
+		inline structure_info const& structure() const
+		{
+			return structure_internal();
+		}
+
+		inline void set_structure(structure_info const& structure)
+		{
+			set_structure_internal(structure);
+		}
+
+		inline void set_terrain(terrain_info const& terrain)
 		{
 			set_terrain_internal(terrain);
 		}
 
-		void set_terrain_variation(size_t const& value)
+		inline void set_terrain_variation(size_t const& value)
 		{
 			return set_terrain_variation_internal(value);
 		}
@@ -43,6 +54,8 @@ namespace engine
 		virtual void set_terrain_internal(terrain_info const& terrain) = 0;
 		virtual size_t const& terrain_variation_internal() const = 0;
 		virtual void set_terrain_variation_internal(size_t const& value) = 0;
+		virtual structure_info const& structure_internal() const = 0;
+		virtual void set_structure_internal(structure_info const& structure) = 0;
 	};
 
 	std::shared_ptr<tile_info> create_tile_info(glm::uvec2 const& coordinate);

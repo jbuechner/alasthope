@@ -7,6 +7,9 @@
 #include "terrain_info.h"
 #include "terrain_infos.h"
 
+#include "structure_info.h"
+#include "structure_infos.h"
+
 #include "tile_info.h"
 #include "rectangular_grid.h"
 
@@ -44,7 +47,9 @@ namespace
 		void fill()
 		{
 			std::mt19937_64 mt{};
-			auto const f = (mt.max() - mt.min()) / 4;
+			auto const f_variations = (mt.max() - mt.min()) / 4;
+			auto const f_terrains = (mt.max() - mt.min()) / 2;
+			auto const f_buildings = (mt.max() - mt.min()) / 32;
 
 			for (glm::uvec2::value_type x = 0; x < _size.x; x++)
 			{
@@ -54,8 +59,10 @@ namespace
 					auto& tile = lookup_ref(coordinate);
 					tile = create_tile_info(coordinate);
 
-					tile->set_terrain(lookup_terrain_info(1));
-					tile->set_terrain_variation(mt() / f);
+					tile->set_terrain(lookup_terrain_info((mt() / f_terrains) + 1));
+					tile->set_terrain_variation(mt() / f_variations);
+
+					tile->set_structure(lookup_structure_info((mt() / f_buildings) + 1));
 				}
 			}
 		}

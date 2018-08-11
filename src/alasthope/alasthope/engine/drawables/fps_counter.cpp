@@ -26,7 +26,7 @@ namespace
 	private:
 		void draw_internal(draw_context& context) override
 		{
-			al_draw_text(reinterpret_cast<ALLEGRO_FONT*>(_font->get_native_ptr()), al_map_rgb(0xff, 0xff, 0xff), 5, 5, allegro_draw_text_flags(), &context.fps_as_string()[0]);
+			al_draw_text(reinterpret_cast<ALLEGRO_FONT*>(_font->get_native_ptr()), al_map_rgb(0x22, 0x22, 0x22), 5, 5, allegro_draw_text_flags(), &context.fps_as_string()[0]);
 		}
 
 		bool draw_requested_internal(draw_context& context) const override

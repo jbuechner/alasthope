@@ -64,7 +64,7 @@ namespace
 		}
 
 		int _flags{ allegro_draw_text_flags() };
-		ALLEGRO_COLOR _color{ al_color_name("white") };
+		ALLEGRO_COLOR _color{ al_map_rgb(0x22, 0x22, 0x22) };
 		bool _is_dirty{ true };
 		bool _is_visible{ true };
 		std::string _text{};

@@ -80,8 +80,9 @@ namespace engine
 		void to_string(int32_t const& value, char* const buffer);
 
 		template <typename bufferT>
-		void to_string(int32_t const& value, bufferT const& buffer)
+		void to_string(int32_t const& value, bufferT& buffer)
 		{
+			std::fill(buffer.begin(), buffer.end(), '\0');
 			to_string(value, &buffer[0]);
 		}
 

@@ -17,6 +17,13 @@ namespace engine
 		class keyboard
 		{
 		public:
+			using key_event_listener = std::function<void(int const& key_code, key_state const& state)>;
+
+			inline void add_listener(key_event_listener const& listener)
+			{
+				add_listener_internal(listener);
+			}
+
 			inline void process_events()
 			{
 				process_events_internal();
@@ -29,6 +36,7 @@ namespace engine
 		protected:
 			virtual ~keyboard() {};
 		private:
+			virtual void add_listener_internal(key_event_listener const& listener) = 0;
 			virtual void process_events_internal() = 0;
 			virtual bool is_key_down_internal(int const& key_code) const = 0;
 		};

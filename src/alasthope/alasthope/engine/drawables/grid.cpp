@@ -7,9 +7,13 @@
 #include "alasthope/engine/aloo/draw_context.h"
 #include "alasthope/engine/aloo/render_texture.h"
 #include "alasthope/engine/terrain_info.h"
+#include "alasthope/engine/structure_info.h"
 #include "alasthope/engine/tile_info.h"
 #include "alasthope/engine/rectangular_grid.h"
 #include "alasthope/engine/drawables/sprite.h"
+
+#include "terrain_sprite_info.h"
+#include "structure_sprite_info.h"
 
 #include "grid_options.h"
 #include "grid.h"
@@ -20,85 +24,31 @@ namespace
 	using namespace engine::aloo;
 	using namespace engine::drawables;
 
-	class terrain_sprite_info
-	{
-	public:
-		terrain_sprite_info()
-			: source{}
-		{
-		}
-
-		terrain_sprite_info(glm::uvec2 const& source_)
-			: source{ source_ }
-		{
-		}
-
-		glm::uvec2 const source;
-	};
-
-	using terrain_sprite_info_variation_list_type = std::vector<terrain_sprite_info>;
-
-	class terrain_sprite_info_list
-	{
-	public:
-		terrain_sprite_info_list(terrain_sprite_info_variation_list_type const& variations_)
-			: variations { std::move(variations_) }
-		{
-		}
-
-		terrain_sprite_info_variation_list_type const variations;
-	};
-
-	terrain_sprite_info_list _none_sprite_info{ std::move<terrain_sprite_info_variation_list_type>({ { { 0, 0 } } }) };
-	terrain_sprite_info_list _sand_sprite_info{ std::move<terrain_sprite_info_variation_list_type>({ { { 0, 32 } }, { { 0, 64 } }, { { 0, 96 } }, { { 0, 128 } } }) };
-
-	using terrain_sprite_info_cache_type = std::unordered_map<size_t, terrain_sprite_info_list>;
-
-	terrain_sprite_info_cache_type initialize_terrain_sprite_info_cache()
-	{
-		terrain_sprite_info_cache_type cache{};
-
-		cache.emplace(0, _none_sprite_info);
-		cache.emplace(1, _sand_sprite_info);
-
-		return std::move(cache);
-	}
-
-	terrain_sprite_info const& lookup_terrain_sprite_info(size_t const& id, size_t const& variation)
-	{
-		static terrain_sprite_info_cache_type cache{ std::move(initialize_terrain_sprite_info_cache()) };
-
-		auto const iter = cache.find(id);
-		if (iter != cache.cend())
-		{
-			auto& list = iter->second;
-			auto const size = list.variations.size();
-			return list.variations.at(std::max(static_cast<size_t>(0), std::min(std::max(static_cast<size_t>(0), size - 1), variation)));
-		}
-		return _none_sprite_info.variations.at(0);
-	}
-
 	class tile_info_sprite : public engine::aloo::drawable
 	{
 	public:
 		tile_info_sprite()
-			: _terrain_sprite_info{ _none_sprite_info.variations.at(0) }
+			: _terrain_sprite_info{ get_default_terrain_sprite_info() }, _structure_sprite_info{ get_default_structure_sprite_info() }
 		{
 		}
 
 		void set_tile_info(std::shared_ptr<tile_info> const& tile_info)
 		{
-			_tile_info = tile_info;
 			_terrain_sprite_info = lookup_terrain_sprite_info(tile_info->terrain().id, tile_info->terrain_variation());
-			update_source_region();
 
-			auto& coordinate = _tile_info->coordinate();
-			_sprite->set_position({ coordinate.x * _size.x, coordinate.y * _size.y });
+			auto& structure = tile_info->structure();
+			_structure_sprite_info = lookup_structure_sprite_info(structure.id);
+			_render_structure = structure.id > 0;
+
+			update_source_regions();
+
+			auto& coordinate = tile_info->coordinate();
+			_position = { coordinate.x * _size.x, coordinate.y * _size.y };
 		}
 
 		void set_spritesheet(std::shared_ptr<render_texture const> const& spritesheet)
 		{
-			_sprite->set_render_texture(spritesheet);
+			_spritesheet = spritesheet;
 		}
 
 		void set_size(glm::uvec2 const& size)
@@ -113,20 +63,33 @@ namespace
 
 		void draw_internal(draw_context& context) override
 		{
-			_sprite->draw(context);
+			auto* const bitmap_ptr{ reinterpret_cast<ALLEGRO_BITMAP*>(_spritesheet->get_native_ptr()) };
+			al_draw_bitmap_region(bitmap_ptr, _terrain_source_region.x, _terrain_source_region.y, _terrain_source_region.z, _terrain_source_region.w, _position.x, _position.y, 0);
+			if (_render_structure)
+			{
+				al_draw_bitmap_region(bitmap_ptr, _structure_source_region.x, _structure_source_region.y, _structure_source_region.z, _structure_source_region.w, _position.x, _position.y, 0);
+			}
 		}
 
-		inline void update_source_region()
+		inline void update_source_regions()
 		{
-			auto& sprite_info = _terrain_sprite_info.get();
-			_sprite->set_source_region({ sprite_info.source.x, sprite_info.source.y, _size.x, _size.y });
+			auto& terrain_sprite_info = _terrain_sprite_info.get();
+			_terrain_source_region = { terrain_sprite_info.source.x, terrain_sprite_info.source.y, _size.x, _size.y };
+
+			auto& structure_sprite_info = _structure_sprite_info.get();
+			_structure_source_region = { structure_sprite_info.source, _size.x, _size.y };
 		}
 
 		std::reference_wrapper<terrain_sprite_info const> _terrain_sprite_info;
+		std::reference_wrapper<structure_sprite_info const> _structure_sprite_info;
+
 		bool _is_dirty{ false };
+		bool _render_structure{ false };
 		glm::uvec2 _size{};
-		std::shared_ptr<tile_info const> _tile_info{ nullptr };
-		std::shared_ptr<sprite> _sprite{ create_sprite() };
+		glm::uvec4 _terrain_source_region{};
+		glm::uvec4 _structure_source_region{};
+		glm::ivec2 _position{};
+		std::shared_ptr<render_texture const> _spritesheet{ nullptr };
 	};
 
 	class grid_internal : public grid
@@ -186,7 +149,7 @@ namespace
 			if (relativePosition.x > 0 && relativePosition.y > 0)
 			{
 				glm::ivec2 const tile_coordinate{ static_cast<glm::ivec2::value_type>(relativePosition.x / _tile_size.x), static_cast<glm::ivec2::value_type>(relativePosition.y / _tile_size.y) };
-				if (tile_coordinate.x >= 0 && tile_coordinate.y >= 0 && tile_coordinate.x < _size.x && tile_coordinate.y < _size.y)
+				if (tile_coordinate.x >= 0 && tile_coordinate.y >= 0 && tile_coordinate.x < static_cast<glm::ivec2::value_type>(_size.x) && tile_coordinate.y < static_cast<glm::ivec2::value_type>(_size.y))
 				{
 					return tile_coordinate;
 				}

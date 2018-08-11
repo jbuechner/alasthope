@@ -176,7 +176,10 @@
       <PrecompiledHeaderOutputFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(IntDir)$(TargetName)_allegro.pch</PrecompiledHeaderOutputFile>
       <PrecompiledHeaderOutputFile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(IntDir)$(TargetName)_allegro.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
+    <ClCompile Include="engine\drawables\structure_sprite_info.cpp" />
+    <ClCompile Include="engine\drawables\terrain_sprite_info.cpp" />
     <ClCompile Include="engine\rectangular_grid.cpp" />
+    <ClCompile Include="engine\structure_infos.cpp" />
     <ClCompile Include="engine\terrain_infos.cpp" />
     <ClCompile Include="engine\tile_info.cpp" />
     <ClCompile Include="path_utils.cpp" />
@@ -244,7 +247,11 @@
     <ClInclude Include="engine\drawables\grid.h" />
     <ClInclude Include="engine\drawables\grid_options.h" />
     <ClInclude Include="engine\drawables\sprite.h" />
+    <ClInclude Include="engine\drawables\structure_sprite_info.h" />
+    <ClInclude Include="engine\drawables\terrain_sprite_info.h" />
     <ClInclude Include="engine\rectangular_grid.h" />
+    <ClInclude Include="engine\structure_info.h" />
+    <ClInclude Include="engine\structure_infos.h" />
     <ClInclude Include="engine\terrain_info.h" />
     <ClInclude Include="engine\terrain_infos.h" />
     <ClInclude Include="engine\tile_info.h" />

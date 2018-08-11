@@ -3,6 +3,8 @@
 
 #include "terrain_info.h"
 #include "terrain_infos.h"
+#include "structure_info.h"
+#include "structure_infos.h"
 #include "tile_info.h"
 
 namespace
@@ -13,7 +15,7 @@ namespace
 	{
 	public:
 		tile_info_internal(glm::uvec2 const& coordinate)
-			: _coordinate{ coordinate }, _terrain_info{ lookup_terrain_none() }
+			: _coordinate{ coordinate }, _terrain_info{ lookup_terrain_none() }, _structure_info{ lookup_structure_none() }
 		{
 		}
 	private:
@@ -42,9 +44,20 @@ namespace
 			_terrain_variation = value;
 		}
 
+		structure_info const& structure_internal() const override
+		{
+			return _structure_info;
+		}
+
+		void set_structure_internal(structure_info const& structure) override
+		{
+			_structure_info = structure;
+		}
+
 		glm::uvec2 const _coordinate;
 		std::reference_wrapper<terrain_info const> _terrain_info;
 		size_t _terrain_variation{ 0 };
+		std::reference_wrapper<structure_info const> _structure_info;
 	};
 }
 
