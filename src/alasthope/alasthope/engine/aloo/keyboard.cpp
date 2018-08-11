@@ -22,12 +22,7 @@ namespace
 		keyboard_internal(std::shared_ptr<environment const> const& environment)
 			: _environment{ environment }
 		{
-			bool const success = al_install_keyboard();
-			_ASSERT(success);
-			if (!success)
-			{
-				throw std::exception{ "unable to install keyboard sub system. " };
-			}
+			al_system<&al_install_keyboard>{"unable to install keyboard sub system."};
 
 			_event_queue = std::move(al_event_queue{ al_create_event_queue() });
 			auto* eventSource = al_get_keyboard_event_source();

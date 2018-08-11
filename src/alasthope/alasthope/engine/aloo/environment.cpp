@@ -1,6 +1,7 @@
 #include "pch_allegro.h"
 #pragma hdrstop
 
+#include "utils.h"
 #include "environment.h"
 
 #include "details/font_manager_impl.h"
@@ -8,23 +9,6 @@
 namespace
 {
 	using namespace engine::aloo;
-
-	void void_fn()
-	{
-	}
-
-	template <bool init()>
-	class al_system
-	{
-	public:
-		al_system(std::string const& initialization_error_msg)
-		{
-			if (!init())
-			{
-				throw std::exception{ initialization_error_msg.c_str() };
-			}
-		}
-	};
 
 	class environment_internal : public environment
 	{
@@ -53,8 +37,6 @@ namespace
 
 			al_set_new_bitmap_format(ALLEGRO_PIXEL_FORMAT_ANY_32_WITH_ALPHA);
 			al_set_new_bitmap_flags(ALLEGRO_NO_PREMULTIPLIED_ALPHA);
-
-			//al_set_blender(ALLEGRO_ADD, ALLEGRO_ONE, ALLEGRO_INVERSE_ALPHA);
 			al_set_blender(ALLEGRO_ADD, ALLEGRO_ALPHA, ALLEGRO_INVERSE_ALPHA);
 		}
 	private:

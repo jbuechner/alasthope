@@ -7,8 +7,7 @@
 #include "alasthope/engine/aloo/draw_context.h"
 #include "alasthope/engine/aloo/font.h"
 #include "alasthope/os/os.h"
-
-#include "details/drawables_parental.h"
+#include "alasthope/engine/aloo/parental.h"
 
 #include "fps_counter.h"
 
@@ -40,7 +39,7 @@ namespace
 			return _parental.parent();
 		}
 
-		engine::drawables::details::drawables_parental<fps_counter_internal> _parental{};
+		parental<fps_counter_internal> _parental{};
 		std::shared_ptr<font> const _font;
 	};
 }

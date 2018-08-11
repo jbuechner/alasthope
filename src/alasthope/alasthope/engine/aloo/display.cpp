@@ -10,12 +10,14 @@
 
 #include "utils.h"
 #include "environment.h"
+#include "display_options.h"
 #include "display.h"
 #include "display_loop.h"
 #include "font.h"
 #include "timer.h"
 #include "fps_component.h"
 #include "render_texture.h"
+#include "hierarchical.h"
 
 #include "draw_context.h"
 #include "drawable.h"
@@ -28,13 +30,35 @@ namespace
 	class display_internal : public engine::aloo::display, public std::enable_shared_from_this<display_internal>
 	{
 	public:
-		display_internal(std::shared_ptr<engine::aloo::environment> const& environment)
-			: _environment{ environment }
+		display_internal(std::shared_ptr<environment> const& environment, display_options const& options)
+			: _environment{ environment }, _display_size{ options.display_size }, _backbuffer_size{ options.backbuffer_size }
 		{
-			al_reset_new_display_options();
-
-			al_set_new_display_option(ALLEGRO_VSYNC, _use_vsync ? 1 : 0, ALLEGRO_SUGGEST);
 			al_set_new_display_flags(ALLEGRO_WINDOWED | ALLEGRO_OPENGL_3_0 | ALLEGRO_OPENGL_FORWARD_COMPATIBLE);
+
+			al_reset_new_display_options();
+			al_set_new_display_option(ALLEGRO_VSYNC, _use_vsync ? 1 : 0, ALLEGRO_SUGGEST);
+			al_set_new_display_option(ALLEGRO_SAMPLE_BUFFERS, 1, ALLEGRO_SUGGEST);
+			al_set_new_display_option(ALLEGRO_SAMPLES, 2, ALLEGRO_SUGGEST);
+
+			if (_display_size == glm::uvec2{})
+			{
+				bool found{ false };
+				int size = al_get_num_video_adapters();
+				ALLEGRO_MONITOR_INFO info{};
+				for (int i = 0; i < size; i++)
+				{
+					if (al_get_monitor_info(i, &info) && info.x1 == info.y1 == 0)
+					{
+						_display_size = { info.x2 - info.x1, info.y2 - info.y1 };
+						al_set_new_display_flags(al_get_new_display_flags() | ALLEGRO_FRAMELESS);
+						found = true;
+					}
+				}
+				if (!found)
+				{
+					_display_size = _backbuffer_size;
+				}
+			}
 
 			_display = al_display{ al_create_display(_display_size.x, _display_size.y) };
 			_backbuffer_texture = create_render_texture(_backbuffer_size.x, _backbuffer_size.y, render_texture_flags::video, render_texture_format::best);
@@ -104,13 +128,13 @@ namespace
 		}
 
 		// todo: configuration
-		glm::uvec2 _display_size{ 800, 600 };
-		glm::uvec2 _backbuffer_size{ 800, 600 };
+		glm::uvec2 _display_size;
+		glm::uvec2 _backbuffer_size;
 
 		bool _are_backbuffer_and_frontbuffer_are_perfect{ false };
 
-		size_t _target_fps{ 60 };
-		bool _use_vsync{ false };
+		size_t _target_fps{ 30 };
+		bool _use_vsync{ true };
 
 		std::shared_ptr<render_texture> _backbuffer_texture;
 		std::shared_ptr<engine::aloo::environment> const _environment;
@@ -150,7 +174,7 @@ namespace
 	{
 	public:
 		display_loop_internal(std::shared_ptr<display_internal> const& display)
-			: _display{ display }, _display_event_loop{ display }, _draw_context { display }
+			: _display{ display }, _display_event_loop{ display }, _draw_context{ display }
 		{
 			invalidate();
 		}
@@ -163,26 +187,34 @@ namespace
 
 			_display_event_loop.process();
 
-			auto& drawable = _drawable;
+			al_clear_to_color(_clear_color);
 
-			if (drawable)
+			for (auto const& drawable : _children)
 			{
-				if (drawable->draw_requested(_draw_context))
+				if (drawable)
 				{
-					al_clear_to_color(_clear_color);
+					if (drawable->draw_requested(_draw_context))
+					{
 
-					drawable->draw(_draw_context);
+						drawable->draw(_draw_context);
 
-					al_flip_display();
+					}
 				}
 			}
+
+			al_flip_display();
 
 			return !_display->is_closed();
 		}
 	private:
-		void set_root_drawable_internal(std::shared_ptr<drawable> const& drawable) override
+		std::list<std::shared_ptr<drawable>> const& children_internal() const override
 		{
-			_drawable = drawable;
+			return _children;
+		}
+
+		void append_internal(std::shared_ptr<drawable> const& drawable) override
+		{
+			_children.push_back(drawable);
 		}
 
 		void invalidate()
@@ -192,13 +224,11 @@ namespace
 		}
 
 		draw_context _draw_context;
-
-		std::shared_ptr<drawable> _drawable{ nullptr };
-
 		fps_component _fps{};
 
 		ALLEGRO_COLOR const _clear_color{ al_map_rgb(0, 0, 0) };
 
+		std::list<std::shared_ptr<drawable>> _children{};
 		std::shared_ptr<timer> _timer{ nullptr };
 		std::shared_ptr<display_internal> const _display;
 		display_event_loop _display_event_loop;
@@ -209,9 +239,9 @@ namespace engine
 {
 	namespace aloo
 	{
-		std::shared_ptr<display> create_display(std::shared_ptr<environment> const& environment)
+		std::shared_ptr<display> create_display(std::shared_ptr<environment> const& environment, display_options const& options)
 		{
-			return std::move(std::make_shared<display_internal>(environment));
+			return std::move(std::make_shared<display_internal>(environment, options));
 		}
 	}
 }

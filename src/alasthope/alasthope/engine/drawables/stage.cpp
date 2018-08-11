@@ -7,7 +7,7 @@
 #include "alasthope/engine/aloo/render_texture.h"
 #include "alasthope/engine/aloo/draw_context.h"
 
-#include "details/drawables_hierarchical.h"
+#include "alasthope/engine/aloo/hierarchical.h"
 
 #include "stage.h"
 
@@ -27,15 +27,7 @@ namespace
 	private:
 		bool draw_requested_internal(draw_context& context) const override
 		{
-			for (auto const& child : _hierarchical.children())
-			{
-				if (child->draw_requested(context))
-				{
-					return true;
-				}
-			}
-
-			return false;
+			return true;
 		}
 
 		void draw_internal(draw_context& context) override
@@ -45,6 +37,7 @@ namespace
 
 			{
 				auto const target = backbuffer.make_render_target();
+				al_clear_to_color(_clear_color);
 
 				for (auto& child : _hierarchical.children())
 				{
@@ -80,7 +73,8 @@ namespace
 		}
 
 	private:
-		engine::drawables::details::drawables_hierarchical<stage_internal> _hierarchical;
+		ALLEGRO_COLOR _clear_color{ 0,0,0,0 };
+		hierarchical<stage_internal> _hierarchical;
 	};
 }
 

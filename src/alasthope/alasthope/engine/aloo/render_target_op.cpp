@@ -9,7 +9,15 @@ namespace engine
 	{
 		render_target_op::~render_target_op()
 		{
-			al_set_target_backbuffer(al_get_current_display());
+			if (_owning)
+			{
+				al_set_target_backbuffer(al_get_current_display());
+			}
+		}
+
+		render_target_op::render_target_op(render_target_op&& other)
+		{
+			other._owning = false;
 		}
 
 		render_target_op::render_target_op(void* const native_texture_ptr)

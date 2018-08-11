@@ -4,6 +4,19 @@ namespace engine
 {
 	namespace aloo
 	{
+		template <bool init()>
+		class al_system
+		{
+		public:
+			al_system(std::string const& initialization_error_msg)
+			{
+				if (!init())
+				{
+					throw std::exception{ initialization_error_msg.c_str() };
+				}
+			}
+		};
+
 		template <typename T, void deleter(T*)>
 		class guarded_allegro_object
 		{

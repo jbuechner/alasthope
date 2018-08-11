@@ -9,6 +9,7 @@ namespace engine
 		class environment;
 		class display_loop;
 		class render_texture;
+		struct display_options;
 
 		class display
 		{
@@ -54,6 +55,6 @@ namespace engine
 			virtual glm::uvec2 const& backbuffer_size_internal() const = 0;
 		};
 
-		std::shared_ptr<display> create_display(std::shared_ptr<environment> const& environment);
+		std::shared_ptr<display> create_display(std::shared_ptr<environment> const& environment, display_options const& options);
 	}
 }

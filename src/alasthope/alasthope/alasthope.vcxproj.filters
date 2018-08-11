@@ -78,6 +78,21 @@
     <ClCompile Include="path_utils.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="engine\aloo\mouse.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\rectangular_grid.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\tile_info.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\drawables\grid.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\terrain_infos.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="_pch\pch.h">
@@ -149,12 +164,6 @@
     <ClInclude Include="engine\drawables\fps_counter.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="engine\drawables\details\drawables_hierarchical.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="engine\drawables\details\drawables_parental.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="engine\drawables\label.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -183,6 +192,36 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="engine\drawables\sprite.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\aloo\display_options.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\aloo\mouse.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\rectangular_grid.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\tile_info.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\drawables\grid.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\drawables\grid_options.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\terrain_info.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\terrain_infos.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\aloo\hierarchical.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\aloo\parental.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

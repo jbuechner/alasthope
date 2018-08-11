@@ -27,9 +27,15 @@ namespace engine
 			{
 				set_font_internal(font);
 			}
+
+			inline void center_text()
+			{
+				center_text_internal();
+			}
 		private:
 			virtual void set_text_internal(std::string&& text) = 0;
 			virtual void set_font_internal(std::shared_ptr<aloo::font> const& font) = 0;
+			virtual void center_text_internal() = 0;
 		};
 
 		std::shared_ptr<label> create_label();

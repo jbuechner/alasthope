@@ -17,12 +17,18 @@ namespace engine
 		public:
 			virtual bool operator()() = 0;
 
-			void set_root_drawable(std::shared_ptr<drawable> const& drawable)
+			inline std::list<std::shared_ptr<drawable>> const& children() const
 			{
-				set_root_drawable_internal(drawable);
+				return children_internal();
+			}
+
+			inline void append(std::shared_ptr<drawable> const& drawable)
+			{
+				append_internal(drawable);
 			}
 		private:
-			virtual void set_root_drawable_internal(std::shared_ptr<drawable> const& drawable) = 0;
+			virtual std::list<std::shared_ptr<drawable>> const& children_internal() const = 0;
+			virtual void append_internal(std::shared_ptr<drawable> const& drawable) = 0;
 		};
 	}
 }

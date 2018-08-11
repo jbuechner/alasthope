@@ -5,7 +5,7 @@
 #include "alasthope/engine/aloo/utils.h"
 #include "alasthope/engine/aloo/font.h"
 
-#include "details/drawables_parental.h"
+#include "alasthope/engine/aloo/parental.h"
 
 #include "label.h"
 
@@ -19,14 +19,14 @@ namespace
 	private:
 		virtual bool draw_requested_internal(draw_context& context) const override
 		{
-			return _is_dirty;
+			return _is_visible;
 		}
 
 		virtual void draw_internal(draw_context& context) override
 		{
 			if (_font)
 			{
-				al_draw_text(reinterpret_cast<ALLEGRO_FONT*>(_font->get_native_ptr()), _color, _position.x, _position.y, allegro_draw_text_flags(), _text.c_str());
+				al_draw_text(reinterpret_cast<ALLEGRO_FONT*>(_font->get_native_ptr()), _color, _position.x, _position.y, _flags, _text.c_str());
 			}
 			_is_dirty = false;
 		}
@@ -36,12 +36,17 @@ namespace
 			return _parental.parent();
 		}
 
+		void set_visible_internal(bool const& value) override
+		{
+			_is_visible = value;
+		}
+
 		void set_text_internal(std::string&& text) override
 		{
 			_text = std::move(text);
 		}
 
-		void set_position_internal(glm::vec2 const& position) override
+		void set_position_internal(glm::ivec2 const& position) override
 		{
 			_position = position;
 			_is_dirty = true;
@@ -53,12 +58,19 @@ namespace
 			_is_dirty = true;
 		}
 
+		void center_text_internal() override
+		{
+			_flags |= ALLEGRO_ALIGN_CENTRE;
+		}
+
+		int _flags{ allegro_draw_text_flags() };
 		ALLEGRO_COLOR _color{ al_color_name("white") };
 		bool _is_dirty{ true };
+		bool _is_visible{ true };
 		std::string _text{};
-		engine::drawables::details::drawables_parental<label_internal> _parental{};
+		parental<label_internal> _parental{};
 		std::shared_ptr<font> _font{ nullptr };
-		glm::vec2 _position{};
+		glm::ivec2 _position{};
 	};
 }
 

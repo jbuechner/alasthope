@@ -24,6 +24,7 @@ namespace
 		void wait_for_tick_internal() const override
 		{
 			al_wait_for_event(_event_queue.get(), &_ev);
+			al_flush_event_queue(_event_queue.get());
 		}
 
 		al_timer const _timer { nullptr };

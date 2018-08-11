@@ -31,7 +31,7 @@ namespace
 			: _format{ format }
 		{
 			{
-				details::allegro_bitmap_flags_guard flagsGuard { static_cast<int>(flags) };
+				details::allegro_bitmap_flags_guard flagsGuard { al_get_new_bitmap_flags() | static_cast<int>(flags) };
 				details::allegro_bitmap_format_guard formatGuard { static_cast<int>(format) };
 
 				_texture = al_bitmap{ al_create_bitmap(static_cast<int>(width), static_cast<int>(height)) };

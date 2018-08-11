@@ -8,7 +8,10 @@ namespace engine
 		{
 		public:
 			~render_target_op();
+			render_target_op(render_target_op&& other);
 			render_target_op(void* const native_texture_ptr);
+		private:
+			bool _owning{ true };
 		};
 	}
 }
