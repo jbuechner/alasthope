@@ -1,0 +1,11 @@
+.git
+.vs
+*.suo
+*.user
+*.log
+
+/bin
+/obj
+
+/ext/liballeg/5.2.4/*
+!/ext/liballeg/5.2.4/README
