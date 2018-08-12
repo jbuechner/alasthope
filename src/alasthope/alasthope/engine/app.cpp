@@ -199,7 +199,7 @@ namespace
 			{
 				return day_time_cycle::sunrise;
 			}
-			if (_hours.count() >= 8 && _hours.count() < 19)
+			if (_hours.count() >= 7 && _hours.count() < 19)
 			{
 				return day_time_cycle::day;
 			}
@@ -881,10 +881,10 @@ _years += years;
 		{
 			_game_info_overlay->set_state(game_info_overlay_drawable::state::none);
 
-#if _DEBUG
+#if 0
 			uint64_t const map_seed{ 0 };
 #else
-			uint64_t const map_seed{ std::chrono::system_clock::now().time_since_epoch().count() };
+			uint64_t const map_seed{ static_cast<uint64_t>(std::chrono::system_clock::now().time_since_epoch().count()) };
 #endif
 
 			_backend = std::make_shared<backend>( map_seed );
