@@ -81,6 +81,17 @@ namespace
 			{
 				int32_t const h = static_cast<int32_t>(_structure_source_region.w) - static_cast<int32_t>(_structure_source_region.y) - static_cast<int32_t>(_size.y);
 				al_draw_tinted_bitmap_region(bitmap_ptr, color, _structure_source_region.x, _structure_source_region.y, _structure_source_region.z, _structure_source_region.w, _position.x, _position.y + h, 0);
+
+				if (!_tile_info->is_still_in_game())
+				{
+					static const glm::uvec4 source{ 66, 81, 5, 8 };
+					al_draw_bitmap_region(bitmap_ptr, source.x, source.y, source.z, source.w, _position.x + 4, _position.y + 4, 0);
+				}
+				if (!_tile_info->is_active())
+				{
+					static const glm::uvec4 source{ 82, 80, 11, 8 };
+					al_draw_bitmap_region(bitmap_ptr, source.x, source.y, source.z, source.w, _position.x + _size.x - source.z - 4, _position.y + 4, 0);
+				}
 			}
 		}
 
@@ -142,6 +153,8 @@ namespace
 			if (draw)
 			{
 				auto render_target_guard{ std::move(_texture->make_render_target()) };
+
+				al_clear_to_color(_clear_color);
 
 				for (auto& sprite : _sprites)
 				{
@@ -240,6 +253,7 @@ namespace
 			_position = _relative_position - static_cast<glm::ivec2>((total_size / glm::uvec2{ 2, 2 }));
 		}
 
+		ALLEGRO_COLOR const _clear_color{ al_map_rgb(0xee, 0xc3, 0x9a) };
 		bool _is_dirty{ true };
 		std::vector<tile_info_sprite> _sprites{};
 		glm::uvec2 _size{};

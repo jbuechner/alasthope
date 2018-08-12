@@ -111,14 +111,9 @@ namespace
 		{
 		}
 
-		std::int32_t const& flow_per_second() const
+		std::int32_t const flow_per_second() const
 		{
 			return _flow_per_second;
-		}
-
-		std::int32_t const& storage() const
-		{
-			return _storage;
 		}
 
 		void set_flow_per_second(std::int32_t const& value)
@@ -126,15 +121,9 @@ namespace
 			_flow_per_second = value;
 		}
 
-		void add_to_storage(std::int32_t const& value)
-		{
-			_storage += value;
-		}
-
 		ressource const& ressource;
 	private:
 		std::int32_t _flow_per_second{ 0 };
-		std::int32_t _storage{ 0 };
 	};
 
 	class ressources
@@ -350,6 +339,7 @@ _years += years;
 
 			add_to_date_time(0, 0, 0, std::chrono::hours{ 0 }, _tick_duration);
 			waste_tiles();
+			calculate_resources();
 			_game_over = is_game_over();
 
 			switch (get_day_time_cycle())
@@ -397,10 +387,40 @@ _years += years;
 				auto& tile = _grid->lookup({ x, y });
 				if (tile)
 				{
-					std::int32_t c{ static_cast<int32_t>((_mt_weather() / d) * 10) };
+					auto const c { (_mt_weather() / d) * 0.5 };
 					tile->change_waste_factor(c);
 				}
 			}
+		}
+
+		void calculate_resources()
+		{
+			int32_t electricity{ 0 };
+			int32_t water{ 0 };
+			int32_t food{ 0 };
+			int32_t workforce{ 0 };
+
+			auto const size{ _grid->size() };
+			for (size_t x = 0; x < size.x; x++)
+			{
+				for (size_t y = 0; y < size.y; y++)
+				{
+					auto const& tile = _grid->lookup({ x, y });
+					if (tile && tile->is_active())
+					{
+						auto const& structure = tile->structure();
+						electricity += structure.electricity_per_second;
+						water += structure.water_per_second;
+						food += structure.food_per_second;
+						workforce += structure.workforce_per_second;
+					}
+				}
+			}
+
+			_electricity->set_flow_per_second(electricity);
+			_water->set_flow_per_second(water);
+			_food->set_flow_per_second(food);
+			_workforce->set_flow_per_second(workforce);
 		}
 
 		bool is_game_over()
@@ -593,7 +613,7 @@ _years += years;
 			memset(&_textBuffer[0], '\0', _textBuffer.size());
 			auto const t = _backend->temperature();
 			{
-				_textBuffer[0] = t < 0 ? '-' : ' ';
+				_textBuffer[0] = t < 0 ? '-' : '+';
 
 				auto const t_conv = std::abs(t);
 				to_string(static_cast<int32_t>(t_conv), &_textBuffer[1]);
@@ -655,15 +675,10 @@ _years += years;
 			al_draw_bitmap_region(reinterpret_cast<ALLEGRO_BITMAP*>(_spritesheet->get_native_ptr()), _sprite_source.x, _sprite_source.y, _sprite_source.z, _sprite_source.w, _position.x, _position.y, 0);
 			al_draw_text(reinterpret_cast<ALLEGRO_FONT*>(_font->get_native_ptr()), _color, _position.x + 16, _position.y + 32, allegro_draw_text_flags() | ALLEGRO_ALIGN_CENTER, &_ressource.name()[0]);
 
-			ALLEGRO_FONT* font_ptr = reinterpret_cast<ALLEGRO_FONT*>(_font2->get_native_ptr());
-			to_string(_flow->storage(), &_textBuffer[1]);
-			_textBuffer[0] = ' ';
-			al_draw_text(font_ptr, _color, _position.x + 64, _position.y + 4, allegro_draw_text_flags(), &_textBuffer[0]);
-
 			auto flow_per_second = _flow->flow_per_second();
-			to_string(flow_per_second, &_textBuffer[1]);
+			to_string(std::abs(flow_per_second), &_textBuffer[1]);
 			_textBuffer[0] = flow_per_second < 0 ? '-' : '+';
-			al_draw_text(font_ptr, flow_per_second < 0 ? _red : _green, _position.x + 64, _position.y + 24, allegro_draw_text_flags(), &_textBuffer[0]);
+			al_draw_text(reinterpret_cast<ALLEGRO_FONT*>(_font2->get_native_ptr()), flow_per_second < 0 ? _red : _green, _position.x + 64, _position.y + 8, allegro_draw_text_flags(), &_textBuffer[0]);
 		}
 
 		std::array<char, std::numeric_limits<uint64_t>::digits10 + 1> _textBuffer{};
@@ -745,7 +760,6 @@ _years += years;
 			_loop = display.create_loop();
 
 			auto const defaultFont = _environment->get_font_manager()->get_font(std::filesystem::path{ "gfx" } / std::filesystem::path{ "hack-regular.ttf" }, 16);
-			auto const ressourceFont = _environment->get_font_manager()->get_font(std::filesystem::path{ "gfx" } / std::filesystem::path{ "hack-regular.ttf" }, 20);
 			auto const bigFont = _environment->get_font_manager()->get_font(std::filesystem::path{ "gfx" } / std::filesystem::path{ "hack-regular.ttf" }, 24);
 			auto const smallFont = _environment->get_font_manager()->get_font(std::filesystem::path{ "gfx" } / std::filesystem::path{ "hack-regular.ttf" }, 12);
 			auto const spritesheet{ create_render_texture(std::filesystem::path{ "gfx" } / std::filesystem::path{ "spritesheet.png" }) };
@@ -797,16 +811,16 @@ _years += years;
 				_loop->append(sprite);
 			};
 
-			_water_flow_drawable = std::make_shared<ressource_info_drawable>(smallFont, ressourceFont, spritesheet, ressources::water());
+			_water_flow_drawable = std::make_shared<ressource_info_drawable>(smallFont, bigFont, spritesheet, ressources::water());
 			_water_flow_drawable->set_position(resource_icon_offset += resource_icon_margin);
 
-			_electricity_flow_drawable = std::make_shared<ressource_info_drawable>(smallFont, ressourceFont, spritesheet, ressources::electricity());
+			_electricity_flow_drawable = std::make_shared<ressource_info_drawable>(smallFont, bigFont, spritesheet, ressources::electricity());
 			_electricity_flow_drawable->set_position(resource_icon_offset += resource_icon_margin);
 
-			_food_flow_drawable = std::make_shared<ressource_info_drawable>(smallFont, ressourceFont, spritesheet, ressources::food());
+			_food_flow_drawable = std::make_shared<ressource_info_drawable>(smallFont, bigFont, spritesheet, ressources::food());
 			_food_flow_drawable->set_position(resource_icon_offset += resource_icon_margin);
 
-			_workforce_flow_drawable = std::make_shared<ressource_info_drawable>(smallFont, ressourceFont, spritesheet, ressources::workforce());
+			_workforce_flow_drawable = std::make_shared<ressource_info_drawable>(smallFont, bigFont, spritesheet, ressources::workforce());
 			_workforce_flow_drawable->set_position(resource_icon_offset += resource_icon_margin);
 
 			_weather_info_drawable = std::make_shared<weather_info_drawable>(smallFont, bigFont, spritesheet);

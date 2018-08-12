@@ -53,7 +53,7 @@ namespace engine
 			return waste_factor_internal();
 		}
 
-		inline void change_waste_factor(int32_t const& value)
+		inline void change_waste_factor(double const& value)
 		{
 			change_waste_factor_internal(value);
 		}
@@ -61,6 +61,11 @@ namespace engine
 		inline bool is_still_in_game() const
 		{
 			return is_still_in_game_internal();
+		}
+
+		inline bool is_active() const
+		{
+			return is_active_internal();
 		}
 
 	private:
@@ -72,8 +77,9 @@ namespace engine
 		virtual structure_info const& structure_internal() const = 0;
 		virtual void set_structure_internal(structure_info const& structure) = 0;
 		virtual size_t waste_factor_internal() const = 0;
-		virtual void change_waste_factor_internal(int32_t const& value) = 0;
+		virtual void change_waste_factor_internal(double const& value) = 0;
 		virtual bool is_still_in_game_internal() const = 0;
+		virtual bool is_active_internal() const = 0;
 	};
 
 	std::shared_ptr<tile_info> create_tile_info(glm::uvec2 const& coordinate);

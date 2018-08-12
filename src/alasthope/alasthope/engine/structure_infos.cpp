@@ -17,12 +17,12 @@ namespace
 	std::string _watercollector_name{ "atmospheric water collector" };
 	std::string _launchpad_name{ "launchpad" };
 
-	structure_info _none{ 0, _none_name };
-	structure_info _barracks { 1, _barracks_name };
-	structure_info _solarpanel{ 2, _solarpanel_name };
-	structure_info _algaefarm{ 3, _algaefarm_name };
-	structure_info _watercollector{ 4, _watercollector_name };
-	structure_info _launchpad{ 5, _launchpad_name };
+	structure_info _none{ 0, _none_name, 0, 0, 0, 0 };
+	structure_info _barracks { 1, _barracks_name, -1, -2, -1, 5 };
+	structure_info _solarpanel{ 2, _solarpanel_name, 2, 0, 0, -1 };
+	structure_info _algaefarm{ 3, _algaefarm_name, -1, -2, 2, -1 };
+	structure_info _watercollector{ 4, _watercollector_name, 0, 1, 0, -1 };
+	structure_info _launchpad{ 5, _launchpad_name, -10, -1, -1, -1 };
 
 	using cache_type = std::unordered_map<size_t, std::reference_wrapper<structure_info>>;
 

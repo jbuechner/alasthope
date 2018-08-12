@@ -57,21 +57,28 @@ namespace
 
 		std::size_t waste_factor_internal() const override
 		{
-			return _waste_factor;
+			return static_cast<size_t>(_waste_factor);
 		}
 
-		void change_waste_factor_internal(int32_t const& value) override
+		void change_waste_factor_internal(double const& value) override
 		{
-			auto newValue = static_cast<int32_t>(_waste_factor) + value;
-			_waste_factor = static_cast<size_t>(std::max(0, std::min(100, newValue)));
+
+			auto newValue = _waste_factor + value;
+			_waste_factor = std::max(0.0, std::min(100.0, newValue));
 		}
 
 		bool is_still_in_game_internal() const override
 		{
-			return _waste_factor < 70;
+			return _waste_factor < 50;
 		}
 
-		std::size_t _waste_factor{ 0 };
+		bool is_active_internal() const override
+		{
+			return _is_active && is_still_in_game_internal();
+		}
+
+		bool _is_active{ true };
+		double _waste_factor{ 0 };
 		glm::uvec2 const _coordinate;
 		std::reference_wrapper<terrain_info const> _terrain_info;
 		size_t _terrain_variation{ 0 };

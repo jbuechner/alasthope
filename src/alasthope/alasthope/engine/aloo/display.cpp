@@ -226,7 +226,7 @@ namespace
 		draw_context _draw_context;
 		fps_component _fps{};
 
-		ALLEGRO_COLOR const _clear_color{ al_map_rgb(0xee, 0xc3, 0x9a) };
+		ALLEGRO_COLOR const _clear_color{ al_map_rgba(0xee, 0xc3, 0x9a, 0) };
 
 		std::list<std::shared_ptr<drawable>> _children{};
 		std::shared_ptr<timer> _timer{ nullptr };
