@@ -41,7 +41,10 @@ namespace
 
 				for (auto& child : _hierarchical.children())
 				{
-					child->draw(context);
+					if (child->draw_requested(context))
+					{
+						child->draw(context);
+					}
 				}
 			}
 

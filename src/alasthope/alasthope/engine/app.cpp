@@ -181,6 +181,13 @@ namespace
 	class backend
 	{
 	public:
+		backend(uint64_t const& map_seed)
+			: _map_seed{ map_seed }
+		{
+			_grid = create_rectangular_grid({ 20, 20 }, map_seed);
+			change_time_multiplicator(0);
+		}
+
 		date_time get_date_time() const
 		{
 			return { _years, _months, _days, _hours.count(), _minutes.count() };
@@ -189,6 +196,11 @@ namespace
 		std::shared_ptr<rectangular_grid> const& grid() const
 		{
 			return _grid;
+		}
+
+		uint64_t map_seed() const
+		{
+			return _map_seed;
 		}
 
 		day_time_cycle get_day_time_cycle() const
@@ -279,33 +291,23 @@ namespace
 			return std::move(stream.str());
 		}
 
-		std::optional<std::reference_wrapper<ressource_flow>> get_ressource_flow(ressource const& ressource)
-		{
-			if (&ressource == &ressources::water())
-			{
-				return _water;
-			}
-
-			return {};
-		}
-
-		ressource_flow& water_flow()
+		std::shared_ptr<ressource_flow> const& water_flow()
 		{
 			return _water;
 		}
 
-		ressource_flow& electricity_flow()
+		std::shared_ptr<ressource_flow> const& electricity_flow()
 		{
 			return _electricity;
 		}
 
-		ressource_flow& food_flow()
+		std::shared_ptr<ressource_flow> const& food_flow()
 		{
 			return _food;
 
 		}
 
-		ressource_flow& workforce_flow()
+		std::shared_ptr<ressource_flow> const& workforce_flow()
 		{
 			return _workforce;
 		}
@@ -319,26 +321,74 @@ namespace
 		{
 			_temperature = change;
 		}
+
+		size_t time_multiplicator() const
+		{
+			return _time_multiplicator;
+		}
+
+		void change_time_multiplicator(int32_t const& change)
+		{
+			static std::vector<size_t> values{ 1, 2, 4, 8, 16, 32, 64, 128, 256, 512 };
+			int32_t newValue = static_cast<int32_t>(_time_multiplicator_index) + change;
+			newValue = std::max(1, std::min(static_cast<int32_t>(values.size()), newValue));
+			_time_multiplicator_index = newValue;
+			_time_multiplicator = values.at(newValue - 1);
+		}
+
+		void tick()
+		{
+			add_to_date_time(0, 0, 0, std::chrono::hours{ 0 }, _tick_duration);
+
+			switch (get_day_time_cycle())
+			{
+			case day_time_cycle::sunrise:
+			{
+				change_temperature(0.02);
+				break;
+			}
+			case day_time_cycle::day:
+			{
+				change_temperature(0.04);
+				break;
+			}
+			case day_time_cycle::sunset:
+			{
+				change_temperature(0.01);
+				break;
+			}
+			case day_time_cycle::night:
+			{
+				change_temperature(-0.03);
+				break;
+			}
+			}
+		}
 	private:
 		double _temperature{ 0 };
 		int32_t _years { 2109 };
 		int32_t _months { 6 };
 		int32_t _days { 3 };
-		std::chrono::hours _hours;
-		std::chrono::minutes _minutes;
-		std::shared_ptr<rectangular_grid> _grid{ create_rectangular_grid({ 20, 20 }) };
+		std::chrono::hours _hours{ 0 };
+		std::chrono::minutes _minutes{ 0 };
+		std::shared_ptr<rectangular_grid> _grid{ nullptr };
+		uint64_t const _map_seed;
 
-		ressource_flow _water { ressources::water() };
-		ressource_flow _electricity{ ressources::electricity() };
-		ressource_flow _food{ ressources::food() };
-		ressource_flow _workforce{ ressources::workforce() };
+		size_t _time_multiplicator_index{ 1 };
+		size_t _time_multiplicator{ 0 };
+
+		std::chrono::minutes _tick_duration{ 1 };
+
+		std::shared_ptr<ressource_flow> _water { std::make_shared<ressource_flow>(ressources::water()) };
+		std::shared_ptr<ressource_flow> _electricity{ std::make_shared<ressource_flow>(ressources::electricity()) };
+		std::shared_ptr<ressource_flow> _food{ std::make_shared<ressource_flow>(ressources::food()) };
+		std::shared_ptr<ressource_flow> _workforce{ std::make_shared<ressource_flow>(ressources::workforce()) };
 	};
 
 	class game_loop
 	{
 	public:
-		game_loop(backend& backend)
-			: _backend{ backend }
+		game_loop()
 		{
 			set_sleep_duration(default_sleep_duration());
 		}
@@ -349,23 +399,31 @@ namespace
 			return 1s;
 		}
 
-		size_t sleep_duration_multiplicator() const
+		void set_time_multiplicator(size_t const& value)
 		{
-			return lookup_sleep_multiplicator(_sleep_duration_multiplicator);
-		}
+			using namespace std::chrono_literals;
 
-		void change_sleep_duration_multiplicator(int32_t const& change)
-		{
-			int32_t newValue = static_cast<int32_t>(_sleep_duration_multiplicator) + change;
-			newValue = std::max(1, std::min(10, newValue));
-			_sleep_duration_multiplicator = newValue;
-			set_sleep_duration(std::chrono::nanoseconds{ default_sleep_duration().count() / lookup_sleep_multiplicator(_sleep_duration_multiplicator) });
+			auto const new_duration = default_sleep_duration() / value;
+			if (new_duration > 10s || new_duration < 0s)
+			{
+				set_sleep_duration(default_sleep_duration());
+			}
+			else
+			{
+				set_sleep_duration(new_duration);
+			}
 		}
 
 		template <typename repT, typename periodT = std::chrono::high_resolution_clock::rep>
 		void set_sleep_duration(std::chrono::duration<repT, periodT> const& duration)
 		{
 			_sleep_duration = std::chrono::duration_cast<decltype(_sleep_duration)>(duration);
+		}
+
+		void set_backend(std::shared_ptr<backend> const& backend)
+		{
+			std::unique_lock<std::mutex> lock{ _mtx };
+			_backend = backend;
 		}
 
 		void operator()(std::atomic<bool> const& do_continue)
@@ -376,34 +434,36 @@ namespace
 			{
 				std::this_thread::sleep_for(_sleep_duration);
 
-				_backend.add_to_date_time(0, 0, 0, std::chrono::hours{ 0 }, _step_duration);
-				_backend.change_temperature(0.2);
+				std::lock_guard<std::mutex> lock{ _mtx };
+				if (_backend)
+				{
+					_backend->tick();
+				}
 			}
 		}
 	private:
-		static size_t lookup_sleep_multiplicator(size_t const& v)
-		{
-			static std::vector<size_t> values{ 1, 2, 4, 8, 16, 32, 64, 128, 256, 512 };
-			return values.at(v - 1);
-		}
-
-		std::mt19937_64 _mt{ std::chrono::system_clock::now().time_since_epoch().count() };
-		backend& _backend;
-		size_t _sleep_duration_multiplicator{ 1 };
+		std::mutex _mtx{};
+		std::shared_ptr<backend> _backend{ nullptr };
 		std::chrono::nanoseconds _sleep_duration{ 0 };
-		std::chrono::minutes _step_duration{ 1 };
 	};
 
 	class weather_info_drawable : public drawable
 	{
 	public:
-		weather_info_drawable(std::shared_ptr<font> const& small_font, std::shared_ptr<font> const& big_font, std::shared_ptr<render_texture> const& spritesheet, backend const& backend)
-			: _font{ small_font }, _font2{ big_font }, _spritesheet{ spritesheet }, _backend{ backend }
+		weather_info_drawable(std::shared_ptr<font> const& small_font, std::shared_ptr<font> const& big_font, std::shared_ptr<render_texture> const& spritesheet)
+			: _font{ small_font }, _font2{ big_font }, _spritesheet{ spritesheet }
 		{
-			_current_cycle = backend.get_day_time_cycle();
-			update_current_cycle();
 		}
 
+		void set_backend(std::shared_ptr<backend const> const& backend)
+		{
+			_backend = backend;
+			if (_backend)
+			{
+				_current_cycle = _backend->get_day_time_cycle();
+				update_current_cycle();
+			}
+		}
 	private:
 		void update_current_cycle()
 		{
@@ -443,12 +503,12 @@ namespace
 
 		bool draw_requested_internal(draw_context&) const override
 		{
-			return true;
+			return _backend != nullptr;
 		}
 
 		void draw_internal(draw_context&) override
 		{
-			auto new_day_time_cycle = _backend.get_day_time_cycle();
+			auto new_day_time_cycle = _backend->get_day_time_cycle();
 			if (new_day_time_cycle != _current_cycle)
 			{
 				_current_cycle = new_day_time_cycle;
@@ -457,6 +517,8 @@ namespace
 
 			al_draw_bitmap_region(reinterpret_cast<ALLEGRO_BITMAP*>(_spritesheet->get_native_ptr()), _source_location.x, _source_location.y, 32, 16, _position.x, _position.y, 0);
 			al_draw_text(reinterpret_cast<ALLEGRO_FONT*>(_font->get_native_ptr()), _color, _position.x + 16, _position.y + 18, allegro_draw_text_flags() | ALLEGRO_ALIGN_CENTER, _current_cycle_text.c_str());
+
+			al_draw_text(reinterpret_cast<ALLEGRO_FONT*>(_font2->get_native_ptr()), _color, _position.x + 48, _position.y + 4, allegro_draw_text_flags(), "100 °C");
 		}
 
 		day_time_cycle _current_cycle;
@@ -468,15 +530,20 @@ namespace
 		std::shared_ptr<font> const _font;
 		std::shared_ptr<font> const _font2;
 		std::shared_ptr<render_texture> const _spritesheet;
-		backend const& _backend;
+		std::shared_ptr<backend const> _backend{ nullptr };
 	};
 
 	class ressource_info_drawable : public drawable
 	{
 	public:
-		ressource_info_drawable(std::shared_ptr<font> const& small_font, std::shared_ptr<font> const& font, std::shared_ptr<render_texture> const& spritesheet, ressource const& ressource, ressource_flow const& flow)
-			: _font{ small_font }, _font2{ font }, _spritesheet{ spritesheet }, _ressource{ ressource }, _flow{ flow }, _sprite_source{ _ressource.sprite_source() }
+		ressource_info_drawable(std::shared_ptr<font> const& small_font, std::shared_ptr<font> const& font, std::shared_ptr<render_texture> const& spritesheet, ressource const& ressource)
+			: _font{ small_font }, _font2{ font }, _spritesheet{ spritesheet }, _ressource{ ressource }, _sprite_source{ _ressource.sprite_source() }
 		{
+		}
+
+		void set_flow(std::shared_ptr<ressource_flow const> const& flow)
+		{
+			_flow = flow;
 		}
 	private:
 		void set_position_internal(glm::ivec2 const& position) override
@@ -486,7 +553,7 @@ namespace
 
 		bool draw_requested_internal(draw_context&) const override
 		{
-			return true;
+			return _flow != nullptr;
 		}
 
 		void draw_internal(draw_context&) override
@@ -494,15 +561,14 @@ namespace
 			al_draw_bitmap_region(reinterpret_cast<ALLEGRO_BITMAP*>(_spritesheet->get_native_ptr()), _sprite_source.x, _sprite_source.y, _sprite_source.z, _sprite_source.w, _position.x, _position.y, 0);
 			al_draw_text(reinterpret_cast<ALLEGRO_FONT*>(_font->get_native_ptr()), _color, _position.x + 16, _position.y + 32, allegro_draw_text_flags() | ALLEGRO_ALIGN_CENTER, &_ressource.name()[0]);
 
-
 			ALLEGRO_FONT* font_ptr = reinterpret_cast<ALLEGRO_FONT*>(_font2->get_native_ptr());
-			to_string(_flow.storage(), &_textBuffer[1]);
+			to_string(_flow->storage(), &_textBuffer[1]);
 			_textBuffer[0] = ' ';
 			al_draw_text(font_ptr, _color, _position.x + 64, _position.y + 4, allegro_draw_text_flags(), &_textBuffer[0]);
 
-			auto flow_per_second = _flow.flow_per_second();
+			auto flow_per_second = _flow->flow_per_second();
 			to_string(flow_per_second, &_textBuffer[1]);
-			_textBuffer[0] = flow_per_second < 0? '-' : '+';
+			_textBuffer[0] = flow_per_second < 0 ? '-' : '+';
 			al_draw_text(font_ptr, flow_per_second < 0 ? _red : _green, _position.x + 64, _position.y + 24, allegro_draw_text_flags(), &_textBuffer[0]);
 		}
 
@@ -515,8 +581,51 @@ namespace
 		std::shared_ptr<font> const _font2;
 		std::shared_ptr<render_texture> const _spritesheet;
 		ressource const& _ressource;
-		ressource_flow const& _flow;
+		std::shared_ptr<ressource_flow const> _flow{ nullptr };
 		glm::uvec4 const _sprite_source;
+	};
+
+	class game_info_overlay_drawable : public drawable
+	{
+	public:
+		enum class state
+		{
+			none,
+			start_game
+		};
+
+		game_info_overlay_drawable(std::shared_ptr<font> const& font, std::shared_ptr<display const> const& display)
+			: _font{ font }, _display{ display }
+		{
+			_center = display->display_size() / glm::uvec2 { 2, 2 };
+		}
+
+		void set_state(state const& value)
+		{
+			_state = value;
+		}
+
+	private:
+		bool draw_requested_internal(draw_context&) const
+		{
+			return _state != state::none;
+		}
+
+		void draw_internal(draw_context&) override
+		{
+			switch (_state)
+			{
+			case state::start_game:
+				al_draw_multiline_text(reinterpret_cast<ALLEGRO_FONT*>(_font->get_native_ptr()), _color, _center.x, _center.y - 24, 650, 24, allegro_draw_text_flags() | ALLEGRO_ALIGN_CENTER, "Press [N] to start new game. You can also press [N] during the game to restart with another seed.");
+				break;
+			}
+		}
+
+		ALLEGRO_COLOR _color{ al_map_rgb(0x22, 0x22, 0x22) };
+		glm::uvec2 _center{};
+		state _state{ state::none };
+		std::shared_ptr<font> const _font;
+		std::shared_ptr<display const> const _display;
 	};
 
 	class app_internal : public engine::app
@@ -543,7 +652,9 @@ namespace
 			auto const smallFont = _environment->get_font_manager()->get_font(std::filesystem::path{ "gfx" } / std::filesystem::path{ "hack-regular.ttf" }, 12);
 			auto const spritesheet{ create_render_texture(std::filesystem::path{ "gfx" } / std::filesystem::path{ "spritesheet.png" }) };
 
-			_drawable_grid = drawables::create_grid({ spritesheet }, _backend.grid());
+			_drawable_grid = drawables::create_grid({ spritesheet });
+			_drawable_grid->set_position(_display->backbuffer_size() / glm::uvec2{ 2, 2 });
+
 			_tile_info_coordinate_label = create_label();
 			_tile_info_coordinate_label->set_position({ 48, 400 });
 			_tile_info_coordinate_label->set_font(defaultFont);
@@ -588,26 +699,28 @@ namespace
 				_loop->append(sprite);
 			};
 
-			auto water_flow_drawable = std::make_shared<ressource_info_drawable>(smallFont, ressourceFont, spritesheet, ressources::water(), _backend.water_flow());
-			water_flow_drawable->set_position(resource_icon_offset += resource_icon_margin);
+			_water_flow_drawable = std::make_shared<ressource_info_drawable>(smallFont, ressourceFont, spritesheet, ressources::water());
+			_water_flow_drawable->set_position(resource_icon_offset += resource_icon_margin);
 
-			auto electricity_flow_drawable = std::make_shared<ressource_info_drawable>(smallFont, ressourceFont, spritesheet, ressources::electricity(), _backend.electricity_flow());
-			electricity_flow_drawable->set_position(resource_icon_offset += resource_icon_margin);
+			_electricity_flow_drawable = std::make_shared<ressource_info_drawable>(smallFont, ressourceFont, spritesheet, ressources::electricity());
+			_electricity_flow_drawable->set_position(resource_icon_offset += resource_icon_margin);
 
-			auto food_flow_drawable = std::make_shared<ressource_info_drawable>(smallFont, ressourceFont, spritesheet, ressources::food(), _backend.food_flow());
-			food_flow_drawable->set_position(resource_icon_offset += resource_icon_margin);
+			_food_flow_drawable = std::make_shared<ressource_info_drawable>(smallFont, ressourceFont, spritesheet, ressources::food());
+			_food_flow_drawable->set_position(resource_icon_offset += resource_icon_margin);
 
-			auto workforce_flow_drawable = std::make_shared<ressource_info_drawable>(smallFont, ressourceFont, spritesheet, ressources::workforce(), _backend.workforce_flow());
-			workforce_flow_drawable->set_position(resource_icon_offset += resource_icon_margin);
+			_workforce_flow_drawable = std::make_shared<ressource_info_drawable>(smallFont, ressourceFont, spritesheet, ressources::workforce());
+			_workforce_flow_drawable->set_position(resource_icon_offset += resource_icon_margin);
 
-			auto weather_info = std::make_shared<weather_info_drawable>(smallFont, bigFont, spritesheet, _backend);
-			weather_info->set_position({ 32, 92 });
+			_weather_info_drawable = std::make_shared<weather_info_drawable>(smallFont, bigFont, spritesheet);
+			_weather_info_drawable->set_position({ 32, 92 });
 
-			_loop->append(water_flow_drawable);
-			_loop->append(electricity_flow_drawable);
-			_loop->append(food_flow_drawable);
-			_loop->append(workforce_flow_drawable);
-			_loop->append(weather_info);
+			_loop->append(_water_flow_drawable);
+			_loop->append(_electricity_flow_drawable);
+			_loop->append(_food_flow_drawable);
+			_loop->append(_workforce_flow_drawable);
+			_loop->append(_weather_info_drawable);
+
+			_game_info_overlay = std::make_shared<game_info_overlay_drawable>(bigFont, _display);
 
 			_loop->append(stage);
 			_loop->append(_tile_info_sprite);
@@ -617,36 +730,70 @@ namespace
 			_loop->append(_structure_info_label);
 			_loop->append(_datetime_label);
 			_loop->append(_time_multiplicator_label);
+			_loop->append(_game_info_overlay);
 			_loop->append(create_fps_counter(defaultFont));
+
+			_game_info_overlay->set_state(game_info_overlay_drawable::state::start_game);
 
 			_keyboard->add_listener([&](int const& key_code, key_state const& key_state)
 			{
+
 				if (key_state == key_state::pressed)
 				{
 					if (key_code == ALLEGRO_KEY_PAD_PLUS || key_code == ALLEGRO_KEY_EQUALS)
 					{
-						_game_loop.change_sleep_duration_multiplicator(1);
+						if (!_backend)
+						{
+							return;
+						}
+						_backend->change_time_multiplicator(1);
 						update_time_multiplicator();
 					}
 					if (key_code == ALLEGRO_KEY_PAD_MINUS || key_code == ALLEGRO_KEY_MINUS)
 					{
-						_game_loop.change_sleep_duration_multiplicator(-1);
+						if (!_backend)
+						{
+							return;
+						}
+						_backend->change_time_multiplicator(-1);
 						update_time_multiplicator();
+					}
+					if (key_code == ALLEGRO_KEY_N)
+					{
+						start_new_game();
 					}
 				}
 			});
 		}
 
-		void run_and_wait_internal() override
+		void start_new_game()
 		{
-			using namespace std::chrono_literals;
-			auto display_to_backbuffer_factor = static_cast<glm::vec2>(_display->backbuffer_size()) / static_cast<glm::vec2>(_display->display_size());
+			_game_info_overlay->set_state(game_info_overlay_drawable::state::none);
 
-			_drawable_grid->set_position(_display->backbuffer_size() / glm::uvec2{ 2, 2 });
+#if _DEBUG
+			uint64_t const map_seed{ 0 };
+#else
+			uint64_t const map_seed{ std::chrono::system_clock::now().time_since_epoch().count() };
+#endif
 
-			auto backend_future = std::async(std::launch::async, [this]() { _game_loop(_continueRendering); });
+			_backend = std::make_shared<backend>( map_seed );
+			_game_loop.set_backend(_backend);
+			_drawable_grid->set_grid(_backend->grid());
+
+			_water_flow_drawable->set_flow(_backend->water_flow());
+			_electricity_flow_drawable->set_flow(_backend->electricity_flow());
+			_food_flow_drawable->set_flow(_backend->food_flow());
+			_workforce_flow_drawable->set_flow(_backend->workforce_flow());
+			_weather_info_drawable->set_backend(_backend);
 
 			update_time_multiplicator();
+		}
+
+		void run_and_wait_internal() override
+		{
+			auto display_to_backbuffer_factor = static_cast<glm::vec2>(_display->backbuffer_size()) / static_cast<glm::vec2>(_display->display_size());
+			auto gameLoopFuture = std::async(std::launch::async, [&]() { _game_loop(_continueRendering); });
+
 			while ((*_loop)() && _continueRendering.load())
 			{
 				_keyboard->process_events();
@@ -669,7 +816,14 @@ namespace
 					}
 				}
 
-				_datetime_label->set_text(_backend.get_date_time_text());
+				if (_backend)
+				{
+					_datetime_label->set_text(_backend->get_date_time_text());
+				}
+				else
+				{
+					_datetime_label->set_text("");
+				}
 
 				// todo: less stupid key handling required
 				if (_keyboard->is_key_down(ALLEGRO_KEY_ESCAPE))
@@ -678,14 +832,20 @@ namespace
 				}
 			}
 
-			backend_future.wait_for(100ms);
+			gameLoopFuture.wait_for(std::chrono::milliseconds{ 100 });
 		}
 
 		void update_time_multiplicator()
 		{
-			size_t const value = _game_loop.sleep_duration_multiplicator();
+			if (!_backend)
+			{
+				return;
+			}
+
+			size_t const value = _backend->time_multiplicator();
+			_game_loop.set_time_multiplicator(value);
 			std::array<char, std::numeric_limits<size_t>::digits10> buffer{};
-			to_string(value, buffer);
+			to_string(static_cast<int32_t>(value), buffer);
 			_time_multiplicator_label->set_text("x" + std::string { &buffer[0] });
 		}
 
@@ -698,9 +858,9 @@ namespace
 
 			bool const visible{ tile_coordinate };
 
-			if (tile_coordinate)
+			if (tile_coordinate && _backend)
 			{
-				auto tile_info = _backend.grid()->lookup(*tile_coordinate);
+				auto tile_info = _backend->grid()->lookup(*tile_coordinate);
 				std::stringstream buffer{};
 				buffer << (*tile_coordinate).x << ", " << (*tile_coordinate).y;
 
@@ -721,11 +881,10 @@ namespace
 			_tile_info_sprite->set_visible(visible);
 			_structure_info_sprite->set_visible(visible);
 			_structure_info_label->set_visible(visible);
-
 		}
 
-		backend _backend{};
-		game_loop _game_loop { _backend };
+		std::shared_ptr<backend> _backend{ nullptr };
+		game_loop _game_loop{};
 
 		mutable std::atomic<bool> _continueRendering { true };
 		std::shared_ptr<environment> const _environment{ std::move(create_environment()) };
@@ -733,6 +892,15 @@ namespace
 		std::shared_ptr<display_loop> _loop{ nullptr };
 		std::shared_ptr<mouse> _mouse{ nullptr };
 		std::shared_ptr<keyboard> _keyboard{ nullptr };
+
+		std::shared_ptr<game_info_overlay_drawable> _game_info_overlay{ nullptr };
+
+		std::shared_ptr<ressource_info_drawable> _water_flow_drawable{ nullptr };
+		std::shared_ptr<ressource_info_drawable> _electricity_flow_drawable{ nullptr };
+		std::shared_ptr<ressource_info_drawable> _food_flow_drawable{ nullptr };
+		std::shared_ptr<ressource_info_drawable> _workforce_flow_drawable{ nullptr };
+
+		std::shared_ptr<weather_info_drawable> _weather_info_drawable{ nullptr };
 
 		std::shared_ptr<sprite> _tile_info_sprite{ nullptr };
 		std::shared_ptr<label> _tile_info_coordinate_label { nullptr };

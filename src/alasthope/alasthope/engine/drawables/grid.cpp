@@ -95,17 +95,19 @@ namespace
 	class grid_internal : public grid
 	{
 	public:
-		grid_internal(grid_options const& options, std::shared_ptr<rectangular_grid const> const& grid)
-			: _grid{ grid }, _size{ grid->size() }, _spritesheet{ options.spritesheet }, _tile_size{ options.tile_size }
+		grid_internal(grid_options const& options)
+			: _spritesheet{ options.spritesheet }, _tile_size{ options.tile_size }
 		{
-			_sprites.resize(_size.x * _size.y);
-			fill();
-			_texture = create_render_texture(_size.x * _tile_size.x, _size.y * _tile_size.y, render_texture_flags::video, render_texture_format::best);
 			_cursor->set_render_texture(_spritesheet);
 			_cursor->set_source_region({ 32, 0, _tile_size });
 			_cursor->set_visible(false);
 		}
 	private:
+		bool draw_requested_internal(draw_context&) const override
+		{
+			return _grid != nullptr && _texture != nullptr;
+		}
+
 		void draw_internal(draw_context& context) override
 		{
 			bool draw { _is_dirty };
@@ -128,8 +130,8 @@ namespace
 
 		void set_position_internal(glm::ivec2 const& position) override
 		{
-			glm::uvec2 total_size{ _size.x * _tile_size.x, _size.y * _tile_size.y };
-			_position = position - static_cast<glm::ivec2>((total_size / glm::uvec2{ 2, 2 }));
+			_relative_position = position;
+			update_position();
 		}
 
 		virtual void set_cursor_visible_internal(bool const& value) const override
@@ -144,6 +146,11 @@ namespace
 
 		std::optional<glm::uvec2 const> get_coordinate_at_mouse_position_internal(glm::uvec2 const& position) const override
 		{
+			if (!_grid)
+			{
+				return {};
+			}
+
 			auto relativePosition = static_cast<glm::ivec2>(position) - _position;
 
 			if (relativePosition.x > 0 && relativePosition.y > 0)
@@ -156,6 +163,23 @@ namespace
 			}
 
 			return {};
+		}
+
+		void set_grid_internal(std::shared_ptr<rectangular_grid const> const& grid)
+		{
+			_grid = grid;
+
+			if (!_grid)
+			{
+				return;
+			}
+
+			_size = grid->size();
+			_sprites.resize(_size.x * _size.y);
+			fill();
+			update_position();
+			_texture = create_render_texture(_size.x * _tile_size.x, _size.y * _tile_size.y, render_texture_flags::video, render_texture_format::best);
+			_is_dirty = true;
 		}
 
 		inline tile_info_sprite& lookup_ref(glm::uvec2 const& coordinate)
@@ -178,13 +202,25 @@ namespace
 			}
 		}
 
+		void update_position()
+		{
+			if (!_grid)
+			{
+				return;
+			}
+
+			glm::uvec2 total_size{ _size.x * _tile_size.x, _size.y * _tile_size.y };
+			_position = _relative_position - static_cast<glm::ivec2>((total_size / glm::uvec2{ 2, 2 }));
+		}
+
 		bool _is_dirty{ true };
 		std::vector<tile_info_sprite> _sprites{};
-		glm::uvec2 const _size;
+		glm::uvec2 _size{};
 		glm::uvec2 const _tile_size;
 		glm::ivec2 _position{};
+		glm::ivec2 _relative_position{};
 		std::shared_ptr<sprite> const _cursor{ std::move(create_sprite()) };
-		std::shared_ptr<rectangular_grid const> const _grid;
+		std::shared_ptr<rectangular_grid const> _grid{ nullptr };
 		std::shared_ptr<render_texture const> const _spritesheet;
 		std::shared_ptr<render_texture> _texture{ nullptr };
 	};
@@ -194,9 +230,9 @@ namespace engine
 {
 	namespace drawables
 	{
-		std::shared_ptr<grid> create_grid(grid_options const& options, std::shared_ptr<rectangular_grid const> const& grid)
+		std::shared_ptr<grid> create_grid(grid_options const& options)
 		{
-			return std::make_shared<grid_internal>(options, grid);
+			return std::make_shared<grid_internal>(options);
 		}
 	}
 }

@@ -21,10 +21,16 @@ namespace engine
 		{
 			return size_internal();
 		}
+
+		inline uint64_t seed() const
+		{
+			return seed_internal();
+		}
 	private:
 		virtual std::shared_ptr<tile_info> const& lookup_internal(glm::uvec2 const& coordinate) const = 0;
 		virtual glm::uvec2 const& size_internal() const = 0;
+		virtual uint64_t seed_internal() const = 0;
 	};
 
-	std::shared_ptr<rectangular_grid> create_rectangular_grid(glm::uvec2 const& size);
+	std::shared_ptr<rectangular_grid> create_rectangular_grid(glm::uvec2 const& size, uint64_t const& seed);
 }

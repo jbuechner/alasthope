@@ -20,14 +20,13 @@ namespace
 	class rectangular_grid_internal : public rectangular_grid
 	{
 	public:
-		rectangular_grid_internal(glm::uvec2 const& size)
-			: _size{ size }
+		rectangular_grid_internal(glm::uvec2 const& size, uint64_t const& seed)
+			: _size{ size }, _seed{ seed }
 		{
 			_storage.resize(size.x * size.y);
 
-			fill();
+			fill(_seed);
 		}
-
 	private:
 		std::shared_ptr<tile_info> const& lookup_internal(glm::uvec2 const& coordinate) const override
 		{
@@ -39,14 +38,19 @@ namespace
 			return _size;
 		}
 
+		uint64_t seed_internal() const override
+		{
+			return _seed;
+		}
+
 		inline std::shared_ptr<tile_info>& lookup_ref(glm::uvec2 const& coordinate) const
 		{
 			return _storage[coordinate.x + coordinate.y * _size.x];
 		}
 
-		void fill()
+		void fill(uint64_t const& seed)
 		{
-			std::mt19937_64 mt{};
+			std::mt19937_64 mt{ seed };
 			auto const f_variations = (mt.max() - mt.min()) / 4;
 			auto const f_terrains = (mt.max() - mt.min()) / 2;
 			auto const f_buildings = (mt.max() - mt.min()) / 32;
@@ -69,13 +73,14 @@ namespace
 
 		mutable std::vector<std::shared_ptr<tile_info>> _storage{};
 		glm::uvec2 const _size;
+		uint64_t const _seed;
 	};
 }
 
 namespace engine
 {
-	std::shared_ptr<rectangular_grid> create_rectangular_grid(glm::uvec2 const& size)
+	std::shared_ptr<rectangular_grid> create_rectangular_grid(glm::uvec2 const& size, uint64_t const& seed)
 	{
-		return std::make_shared<rectangular_grid_internal>(size);
+		return std::make_shared<rectangular_grid_internal>(size, seed);
 	}
 }
