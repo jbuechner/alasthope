@@ -319,7 +319,11 @@ namespace
 
 		void change_temperature(double const& change)
 		{
-			_temperature = change;
+			constexpr float d = static_cast<float>((decltype(_mt_weather)::max() - decltype(_mt_weather)::min()));
+			auto const f = static_cast<float>(_mt_weather()) / d;
+			_temperature += change + (change * f * 0.2f * (f >= 0.1f ? 1 : -1));
+
+			_temperature = std::max(-10.0, std::min(80.0, _temperature));
 		}
 
 		size_t time_multiplicator() const
@@ -349,7 +353,7 @@ namespace
 			}
 			case day_time_cycle::day:
 			{
-				change_temperature(0.04);
+				change_temperature(0.05);
 				break;
 			}
 			case day_time_cycle::sunset:
@@ -359,13 +363,14 @@ namespace
 			}
 			case day_time_cycle::night:
 			{
-				change_temperature(-0.03);
+				change_temperature(-0.108);
 				break;
 			}
 			}
 		}
 	private:
-		double _temperature{ 0 };
+		std::mt19937_64 _mt_weather { std::chrono::system_clock::now().time_since_epoch().count() };
+		double _temperature{ 32.04 };
 		int32_t _years { 2109 };
 		int32_t _months { 6 };
 		int32_t _days { 3 };
@@ -518,7 +523,29 @@ namespace
 			al_draw_bitmap_region(reinterpret_cast<ALLEGRO_BITMAP*>(_spritesheet->get_native_ptr()), _source_location.x, _source_location.y, 32, 16, _position.x, _position.y, 0);
 			al_draw_text(reinterpret_cast<ALLEGRO_FONT*>(_font->get_native_ptr()), _color, _position.x + 16, _position.y + 18, allegro_draw_text_flags() | ALLEGRO_ALIGN_CENTER, _current_cycle_text.c_str());
 
-			al_draw_text(reinterpret_cast<ALLEGRO_FONT*>(_font2->get_native_ptr()), _color, _position.x + 48, _position.y + 4, allegro_draw_text_flags(), "100 °C");
+			memset(&_textBuffer[0], '\0', _textBuffer.size());
+			auto const t = _backend->temperature();
+			{
+				_textBuffer[0] = t < 0 ? '-' : ' ';
+
+				auto const t_conv = std::abs(t);
+				to_string(static_cast<int32_t>(t_conv), &_textBuffer[1]);
+
+				char* n = reinterpret_cast<char*>(memchr(&_textBuffer[1], '\0', _textBuffer.size() - 1));
+				*n = '.';
+				n += 1;
+
+				auto const f = std::abs((t - static_cast<int32_t>(t)) * 100.0);
+				to_string(static_cast<int32_t>(f), n);
+
+				n = reinterpret_cast<char*>(memchr(&_textBuffer[0], '\0', _textBuffer.size()));
+				*n = ' ';
+				static std::array<char, 3> const degree_literal{ u8"°" };
+				memcpy_s(n + 1, 3, &degree_literal[0], degree_literal.size());
+				*(n + degree_literal.size()) = 'C';
+			}
+
+			al_draw_text(reinterpret_cast<ALLEGRO_FONT*>(_font2->get_native_ptr()), _color, _position.x + 48, _position.y + 2, allegro_draw_text_flags(), &_textBuffer[0]);
 		}
 
 		day_time_cycle _current_cycle;
