@@ -24,9 +24,9 @@ namespace
 		terrain_sprite_info_variation_list_type const variations;
 	};
 
-	terrain_sprite_info_list _none_sprite_info{ std::move<terrain_sprite_info_variation_list_type>({ { { 0, 0 } } }) };
-	terrain_sprite_info_list _sand_sprite_info{ std::move<terrain_sprite_info_variation_list_type>({ { { 0, 32 } },{ { 0, 64 } },{ { 0, 96 } },{ { 0, 128 } } }) };
-	terrain_sprite_info_list _badland_sprite_info{ std::move<terrain_sprite_info_variation_list_type>({ { { 0, 160 } },{ { 0, 192 } },{ { 0, 224 } },{ { 32, 224 } } }) };
+	terrain_sprite_info_list _none_sprite_info{ std::move<terrain_sprite_info_variation_list_type>({ { { 0, 0, 32, 32 } } }) };
+	terrain_sprite_info_list _sand_sprite_info{ std::move<terrain_sprite_info_variation_list_type>({ { { 0, 32, 32, 32 } },{ { 0, 64, 32, 32 } },{ { 0, 96, 32, 32 } },{ { 0, 128, 32, 32 } } }) };
+	terrain_sprite_info_list _badland_sprite_info{ std::move<terrain_sprite_info_variation_list_type>({ { { 0, 160, 32, 32 } },{ { 0, 192, 32, 32 } },{ { 0, 224, 32, 32 } },{ { 32, 224, 32, 32 } } }) };
 
 	using terrain_sprite_info_cache_type = std::unordered_map<size_t, terrain_sprite_info_list>;
 

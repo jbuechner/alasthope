@@ -27,7 +27,7 @@ namespace engine
 				return lock_internal();
 			}
 
-			inline render_target_op make_render_target() const
+			inline std::unique_ptr<render_target_op> make_render_target() const
 			{
 				return std::move(make_render_target_internal());
 			}
@@ -41,7 +41,7 @@ namespace engine
 		private:
 			virtual void* get_native_ptr_internal() const = 0;
 			virtual std::shared_ptr<render_texture_lock_op> lock_internal() = 0;
-			virtual render_target_op make_render_target_internal() const = 0;
+			virtual std::unique_ptr<render_target_op> make_render_target_internal() const = 0;
 			virtual std::shared_ptr<render_texture> make_hardware_texture_internal() const = 0;
 		};
 

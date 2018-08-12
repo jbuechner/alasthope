@@ -69,9 +69,9 @@ namespace
 			return std::move(create_lock_internal<>());
 		}
 
-		render_target_op make_render_target_internal() const override
+		std::unique_ptr<render_target_op> make_render_target_internal() const override
 		{
-			return std::move(render_target_op{ _texture.get() });
+			return std::move(std::make_unique<render_target_op>(_texture.get()));
 		}
 
 		template <bool placeholder = false>

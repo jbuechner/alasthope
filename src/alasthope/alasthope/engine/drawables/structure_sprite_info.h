@@ -14,12 +14,12 @@ namespace engine
 			{
 			}
 
-			structure_sprite_info(glm::uvec2 const& source_)
-				: source{ source_ }
+			structure_sprite_info(glm::uvec4 const& source_)
+				: source { source_ }
 			{
 			}
 
-			glm::uvec2 const source;
+			glm::uvec4 const source;
 		};
 
 		structure_sprite_info const& lookup_structure_sprite_info(size_t const& id);

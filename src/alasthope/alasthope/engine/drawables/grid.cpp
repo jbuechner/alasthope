@@ -34,6 +34,7 @@ namespace
 
 		void set_tile_info(std::shared_ptr<tile_info> const& tile_info)
 		{
+			_tile_info = tile_info;
 			_terrain_sprite_info = lookup_terrain_sprite_info(tile_info->terrain().id, tile_info->terrain_variation());
 
 			auto& structure = tile_info->structure();
@@ -58,26 +59,38 @@ namespace
 	private:
 		bool draw_requested_internal(draw_context& context) const override
 		{
-			return true;
+			if (_tile_info)
+			{
+				auto const newWasteFactor = _tile_info->waste_factor();
+				return newWasteFactor != _last_waste_factor;
+			}
+
+			return false;
 		}
 
 		void draw_internal(draw_context& context) override
 		{
+			_last_waste_factor = _tile_info->waste_factor();
+
+			auto const f = 1 - (_last_waste_factor / 100.0f);
+			ALLEGRO_COLOR color{ al_map_rgba_f(1, 1, 1, f) };
+
 			auto* const bitmap_ptr{ reinterpret_cast<ALLEGRO_BITMAP*>(_spritesheet->get_native_ptr()) };
-			al_draw_bitmap_region(bitmap_ptr, _terrain_source_region.x, _terrain_source_region.y, _terrain_source_region.z, _terrain_source_region.w, _position.x, _position.y, 0);
+			al_draw_tinted_bitmap_region(bitmap_ptr, color, _terrain_source_region.x, _terrain_source_region.y, _terrain_source_region.z, _terrain_source_region.w, _position.x, _position.y, 0);
 			if (_render_structure)
 			{
-				al_draw_bitmap_region(bitmap_ptr, _structure_source_region.x, _structure_source_region.y, _structure_source_region.z, _structure_source_region.w, _position.x, _position.y, 0);
+				int32_t const h = static_cast<int32_t>(_structure_source_region.w) - static_cast<int32_t>(_structure_source_region.y) - static_cast<int32_t>(_size.y);
+				al_draw_tinted_bitmap_region(bitmap_ptr, color, _structure_source_region.x, _structure_source_region.y, _structure_source_region.z, _structure_source_region.w, _position.x, _position.y + h, 0);
 			}
 		}
 
 		inline void update_source_regions()
 		{
 			auto& terrain_sprite_info = _terrain_sprite_info.get();
-			_terrain_source_region = { terrain_sprite_info.source.x, terrain_sprite_info.source.y, _size.x, _size.y };
+			_terrain_source_region = terrain_sprite_info.source;
 
 			auto& structure_sprite_info = _structure_sprite_info.get();
-			_structure_source_region = { structure_sprite_info.source, _size.x, _size.y };
+			_structure_source_region = structure_sprite_info.source;
 		}
 
 		std::reference_wrapper<terrain_sprite_info const> _terrain_sprite_info;
@@ -85,10 +98,12 @@ namespace
 
 		bool _is_dirty{ false };
 		bool _render_structure{ false };
+		size_t _last_waste_factor{ 0 };
 		glm::uvec2 _size{};
 		glm::uvec4 _terrain_source_region{};
 		glm::uvec4 _structure_source_region{};
 		glm::ivec2 _position{};
+		std::shared_ptr<tile_info> _tile_info{ nullptr };
 		std::shared_ptr<render_texture const> _spritesheet{ nullptr };
 	};
 
@@ -111,6 +126,18 @@ namespace
 		void draw_internal(draw_context& context) override
 		{
 			bool draw { _is_dirty };
+
+			if (!draw)
+			{
+				for (auto& sprite : _sprites)
+				{
+					if (sprite.draw_requested(context))
+					{
+						draw = true;
+						break;
+					}
+				}
+			}
 
 			if (draw)
 			{

@@ -9,18 +9,18 @@ namespace engine
 	{
 		render_target_op::~render_target_op()
 		{
-			if (_owning)
+			if (_existing)
+			{
+				al_set_target_bitmap(reinterpret_cast<ALLEGRO_BITMAP*>(_existing));
+			}
+			else
 			{
 				al_set_target_backbuffer(al_get_current_display());
 			}
 		}
 
-		render_target_op::render_target_op(render_target_op&& other)
-		{
-			other._owning = false;
-		}
-
 		render_target_op::render_target_op(void* const native_texture_ptr)
+			: _existing{ al_get_target_bitmap() }
 		{
 			al_set_target_bitmap(reinterpret_cast<ALLEGRO_BITMAP*>(native_texture_ptr));
 		}

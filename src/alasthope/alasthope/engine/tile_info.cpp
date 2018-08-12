@@ -1,6 +1,7 @@
 #include "pch.h"
 #pragma hdrstop
 
+#include <algorithm>
 #include "terrain_info.h"
 #include "terrain_infos.h"
 #include "structure_info.h"
@@ -54,6 +55,23 @@ namespace
 			_structure_info = structure;
 		}
 
+		std::size_t waste_factor_internal() const override
+		{
+			return _waste_factor;
+		}
+
+		void change_waste_factor_internal(int32_t const& value) override
+		{
+			auto newValue = static_cast<int32_t>(_waste_factor) + value;
+			_waste_factor = static_cast<size_t>(std::max(0, std::min(100, newValue)));
+		}
+
+		bool is_still_in_game_internal() const override
+		{
+			return _waste_factor < 70;
+		}
+
+		std::size_t _waste_factor{ 0 };
 		glm::uvec2 const _coordinate;
 		std::reference_wrapper<terrain_info const> _terrain_info;
 		size_t _terrain_variation{ 0 };

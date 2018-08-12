@@ -1,6 +1,7 @@
 #include "pch_allegro.h"
 #pragma hdrstop
 
+#include <stack>
 #include <random>
 #include <array>
 #include <thread>
@@ -281,7 +282,7 @@ namespace
 				_years += _months / 12;
 				_months = (_months % 12) + 1;
 			}
-			_years += years;
+_years += years;
 		}
 
 		std::string get_date_time_text() const
@@ -342,7 +343,14 @@ namespace
 
 		void tick()
 		{
+			if (_game_over)
+			{
+				return;
+			}
+
 			add_to_date_time(0, 0, 0, std::chrono::hours{ 0 }, _tick_duration);
+			waste_tiles();
+			_game_over = is_game_over();
 
 			switch (get_day_time_cycle())
 			{
@@ -368,7 +376,66 @@ namespace
 			}
 			}
 		}
+
+		bool game_over() const
+		{
+			return _game_over;
+		}
 	private:
+		void waste_tiles()
+		{
+			auto const size{ _grid->size() };
+			constexpr float d = static_cast<float>((decltype(_mt_weather)::max() - decltype(_mt_weather)::min()));
+
+			size_t targets{ static_cast<size_t>(10.0 * (_mt_weather() / d)) };
+
+			for (size_t t = 0; t < targets; t++)
+			{
+				size_t x{ static_cast<size_t>((_mt_weather() / d) * size.x) };
+				size_t y{ static_cast<size_t>((_mt_weather() / d) * size.y) };
+
+				auto& tile = _grid->lookup({ x, y });
+				if (tile)
+				{
+					std::int32_t c{ static_cast<int32_t>((_mt_weather() / d) * 10) };
+					tile->change_waste_factor(c);
+				}
+			}
+		}
+
+		bool is_game_over()
+		{
+			bool at_least_on_tile_usable{ false };
+			auto const size{ _grid->size() };
+
+			auto launchPad = _grid->lookup(_grid->launch_pad_position());
+			if (launchPad && !launchPad->is_still_in_game())
+			{
+				return true;
+			}
+
+			for (size_t x = 0; x < size.x; x++)
+			{
+				for (size_t y = 0; y < size.y; y++)
+				{
+					auto const& tile = _grid->lookup({ x, y });
+					if (tile && tile->is_still_in_game())
+					{
+						at_least_on_tile_usable = true;
+						break;
+					}
+				}
+
+				if (at_least_on_tile_usable)
+				{
+					break;
+				}
+			}
+
+			return !at_least_on_tile_usable;
+		}
+
+		bool _game_over{ false };
 		std::mt19937_64 _mt_weather { std::chrono::system_clock::now().time_since_epoch().count() };
 		double _temperature{ 32.04 };
 		int32_t _years { 2109 };
@@ -618,7 +685,8 @@ namespace
 		enum class state
 		{
 			none,
-			start_game
+			start_game,
+			game_over
 		};
 
 		game_info_overlay_drawable(std::shared_ptr<font> const& font, std::shared_ptr<display const> const& display)
@@ -644,6 +712,9 @@ namespace
 			{
 			case state::start_game:
 				al_draw_multiline_text(reinterpret_cast<ALLEGRO_FONT*>(_font->get_native_ptr()), _color, _center.x, _center.y - 24, 650, 24, allegro_draw_text_flags() | ALLEGRO_ALIGN_CENTER, "Press [N] to start new game. You can also press [N] during the game to restart with another seed.");
+				break;
+			case state::game_over:
+				al_draw_multiline_text(reinterpret_cast<ALLEGRO_FONT*>(_font->get_native_ptr()), _color, _center.x, _center.y - 24, 650, 24, allegro_draw_text_flags() | ALLEGRO_ALIGN_CENTER, "Game over. You either lost the launch pad to the wastelands or all of your potential work force died. Humanity vanished from the planet. Press [N] to start a new game.");
 				break;
 			}
 		}
@@ -764,7 +835,6 @@ namespace
 
 			_keyboard->add_listener([&](int const& key_code, key_state const& key_state)
 			{
-
 				if (key_state == key_state::pressed)
 				{
 					if (key_code == ALLEGRO_KEY_PAD_PLUS || key_code == ALLEGRO_KEY_EQUALS)
@@ -845,7 +915,14 @@ namespace
 
 				if (_backend)
 				{
-					_datetime_label->set_text(_backend->get_date_time_text());
+					if (_backend->game_over())
+					{
+						_game_info_overlay->set_state(game_info_overlay_drawable::state::game_over);
+					}
+					else
+					{
+						_datetime_label->set_text(_backend->get_date_time_text());
+					}
 				}
 				else
 				{
@@ -896,10 +973,10 @@ namespace
 				_tile_info_coordinate_label->set_text(buffer.str());
 
 				auto const& terrain_sprite_info = lookup_terrain_sprite_info(tile_info->terrain().id, tile_info->terrain_variation());
-				_tile_info_sprite->set_source_region({ terrain_sprite_info.source, 32, 32 });
+				_tile_info_sprite->set_source_region(terrain_sprite_info.source);
 
 				auto const& structure_sprite_info = lookup_structure_sprite_info(tile_info->structure().id);
-				_structure_info_sprite->set_source_region({ structure_sprite_info.source, 32, 32 });
+				_structure_info_sprite->set_source_region(structure_sprite_info.source);
 				_structure_info_label->set_text(std::string{ tile_info->structure().name });
 			}
 

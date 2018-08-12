@@ -43,17 +43,37 @@ namespace
 			return _seed;
 		}
 
+		glm::uvec2 const& launch_pad_position_internal() const
+		{
+			return _launch_pad_position;
+		}
+
 		inline std::shared_ptr<tile_info>& lookup_ref(glm::uvec2 const& coordinate) const
 		{
-			return _storage[coordinate.x + coordinate.y * _size.x];
+			static std::shared_ptr<tile_info> empty{ nullptr };
+
+			auto const i = coordinate.x + coordinate.y * _size.x;
+
+			if (i >= 0 && i < _storage.size())
+			{
+				return _storage[i];
+			}
+
+			return empty;
 		}
 
 		void fill(uint64_t const& seed)
 		{
 			std::mt19937_64 mt{ seed };
-			auto const f_variations = (mt.max() - mt.min()) / 4;
-			auto const f_terrains = (mt.max() - mt.min()) / 2;
-			auto const f_buildings = (mt.max() - mt.min()) / 32;
+			constexpr float d = static_cast<float>((decltype(mt)::max() - decltype(mt)::min()));
+
+			auto const f_variations = d / 4;
+			auto const f_terrains = d / 2;
+
+			auto const launchPadX{ static_cast<size_t>((mt() / d) * _size.x) };
+			auto const launchPadY{ static_cast<size_t>((mt() / d) * _size.y) };
+
+			_launch_pad_position = { launchPadX, launchPadY };
 
 			for (glm::uvec2::value_type x = 0; x < _size.x; x++)
 			{
@@ -66,13 +86,26 @@ namespace
 					tile->set_terrain(lookup_terrain_info((mt() / f_terrains) + 1));
 					tile->set_terrain_variation(mt() / f_variations);
 
-					tile->set_structure(lookup_structure_info((mt() / f_buildings) + 1));
+					if (x == _launch_pad_position.x && y == _launch_pad_position.y)
+					{
+						tile->set_structure(lookup_structure_info(5));
+					}
+					else
+					{
+						if (mt() / d > 0.95)
+						{
+							int32_t i = static_cast<int32_t>((mt() / d) * 5.0);
+							i = std::max(std::min(i, 4), 1);
+							tile->set_structure(lookup_structure_info(i));
+						}
+					}
 				}
 			}
 		}
 
 		mutable std::vector<std::shared_ptr<tile_info>> _storage{};
 		glm::uvec2 const _size;
+		glm::uvec2 _launch_pad_position{};
 		uint64_t const _seed;
 	};
 }

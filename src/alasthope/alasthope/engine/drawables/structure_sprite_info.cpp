@@ -8,11 +8,12 @@ namespace
 {
 	using namespace engine::drawables;
 
-	structure_sprite_info _none_sprite_info{ { 0, 0 } };
-	structure_sprite_info _barracks_sprite_info{ { 64, 0 } };
-	structure_sprite_info _solarpanel_sprite_info{ { 96, 0 } };
-	structure_sprite_info _algaefarm_sprite_info{ { 128, 0 } };
-	structure_sprite_info _watercollector_sprite_info{ { 160, 0 } };
+	structure_sprite_info _none_sprite_info{ { 0, 0, 32, 32 } };
+	structure_sprite_info _barracks_sprite_info{ { 64, 0, 32, 32 } };
+	structure_sprite_info _solarpanel_sprite_info{ { 96, 0, 32, 32 } };
+	structure_sprite_info _algaefarm_sprite_info{ { 128, 0, 32, 32 } };
+	structure_sprite_info _watercollector_sprite_info{ { 160, 0, 32, 32 } };
+	structure_sprite_info _launchpad_sprite_info{ { 32, 80, 32, 64 } };
 
 	using structure_sprite_info_cache_type = std::unordered_map<size_t, structure_sprite_info&>;
 
@@ -25,6 +26,7 @@ namespace
 		cache.emplace(2, _solarpanel_sprite_info);
 		cache.emplace(3, _algaefarm_sprite_info);
 		cache.emplace(4, _watercollector_sprite_info);
+		cache.emplace(5, _launchpad_sprite_info);
 
 		return std::move(cache);
 	}

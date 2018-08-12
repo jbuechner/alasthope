@@ -48,6 +48,21 @@ namespace engine
 			return set_terrain_variation_internal(value);
 		}
 
+		inline size_t waste_factor() const
+		{
+			return waste_factor_internal();
+		}
+
+		inline void change_waste_factor(int32_t const& value)
+		{
+			change_waste_factor_internal(value);
+		}
+
+		inline bool is_still_in_game() const
+		{
+			return is_still_in_game_internal();
+		}
+
 	private:
 		virtual glm::uvec2 const& coordinate_internal() const = 0;
 		virtual terrain_info const& terrain_internal() const = 0;
@@ -56,6 +71,9 @@ namespace engine
 		virtual void set_terrain_variation_internal(size_t const& value) = 0;
 		virtual structure_info const& structure_internal() const = 0;
 		virtual void set_structure_internal(structure_info const& structure) = 0;
+		virtual size_t waste_factor_internal() const = 0;
+		virtual void change_waste_factor_internal(int32_t const& value) = 0;
+		virtual bool is_still_in_game_internal() const = 0;
 	};
 
 	std::shared_ptr<tile_info> create_tile_info(glm::uvec2 const& coordinate);
